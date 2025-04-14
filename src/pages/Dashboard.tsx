@@ -10,16 +10,27 @@ export default function Dashboard() {
   const [pdfs, setPdfs] = useState<PDF[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // State for search term
+  const [searchTerm, setSearchTerm] = useState('');
+
   useEffect(() => {
     loadPDFs();
   }, []);
 
   const loadPDFs = async () => {
     try {
-      const { data, error } = await supabase
-        .from('pdfs')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data: authData, error: userError } = await supabase.auth.getUser();
+    if (userError || !authData.user) {
+        throw new Error('User not authenticated');
+      }
+    const userId = authData.user.id;
+
+    const { data, error } = await supabase
+      .from('pdfs')
+      .select('*')
+      .eq('user_id', userId)  // Only fetch PDFs belonging to this user
+      .order('created_at', { ascending: false });
+
 
       if (error) throw error;
       setPdfs(data || []);
@@ -33,7 +44,7 @@ export default function Dashboard() {
 
   const handleDelete = async (id: string) => {
     try {
-      const pdf = pdfs.find(p => p.id === id);
+      const pdf = pdfs.find((p) => p.id === id);
       if (!pdf) return;
 
       // Delete from storage
@@ -51,7 +62,7 @@ export default function Dashboard() {
 
       if (dbError) throw dbError;
 
-      setPdfs(pdfs.filter(p => p.id !== id));
+      setPdfs(pdfs.filter((p) => p.id !== id));
       toast.success('PDF deleted successfully');
     } catch (error) {
       console.error('Error deleting PDF:', error);
@@ -65,12 +76,17 @@ export default function Dashboard() {
     toast.success('Share link copied to clipboard!');
   };
 
+  // Filter PDFs by search term
+  const filteredPdfs = pdfs.filter((pdf) =>
+    pdf.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (loading) {
     return (
       <div className="bg-white shadow rounded-lg p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+          <div className="h-8 bg-gray-200 rounded w-1/4" />
+          <div className="h-64 bg-gray-200 rounded" />
         </div>
       </div>
     );
@@ -78,18 +94,35 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Upload Section */}
       <div className="bg-white shadow rounded-lg p-6">
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Upload PDF</h1>
         <PDFUploader onUploadComplete={(pdf) => setPdfs([pdf, ...pdfs])} />
       </div>
 
+      {/* PDF List Section */}
       <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-2xl font-semibold text-gray-900 mb-6">My PDFs</h2>
-        {pdfs.length === 0 ? (
-          <p className="text-center text-gray-500">No PDFs uploaded yet.</p>
+        {/* Header with Search Bar */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold text-gray-900">My PDFs</h2>
+          <input
+            type="text"
+            placeholder="Search PDFs..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        {filteredPdfs.length === 0 ? (
+          <p className="text-center text-gray-500">
+            {searchTerm
+              ? 'No PDFs match your search.'
+              : 'No PDFs uploaded yet.'}
+          </p>
         ) : (
           <div className="space-y-4">
-            {pdfs.map((pdf) => (
+            {filteredPdfs.map((pdf) => (
               <div
                 key={pdf.id}
                 className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"

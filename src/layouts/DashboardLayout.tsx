@@ -17,7 +17,7 @@ export default function DashboardLayout() {
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/update-password" state={{ from: location }} replace />;
   }
 
   const handleLogout = async () => {

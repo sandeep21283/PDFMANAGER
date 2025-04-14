@@ -1,39 +1,57 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 
 export default function UpdatePassword() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  const [isRecovery, setIsRecovery] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (location.hash) {
+      // Remove '#' and parse params from the hash
+      const hashParams = new URLSearchParams(location.hash.slice(1));
+      const type = hashParams.get('type'); // expect type to be "recovery"
+      setIsRecovery(type === 'recovery');
+    } else {
+      // If there's no hash, set as not recovery (or you can choose to wait)
+      setIsRecovery(false);
+    }
+  }, [location.hash]);
+
+  // While we haven't determined the recovery status
+  if (isRecovery === null) {
+    return <div>Loading...</div>;
+  }
+
+  // If it's not a recovery token, redirect to home
+  if (!isRecovery) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (newPassword !== confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
-
     setLoading(true);
     try {
-      // Update the user's password using Supabase's updateUser method
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
-
-      if (error) {
-        throw error;
-      }
-
+      if (error) throw error;
       toast.success('Password updated successfully!');
-      // Redirect the user to your homepage or dashboard
+      // Optionally, sign the user out if needed
       navigate('/');
     } catch (error) {
-      console.error(`Error updating password:${error}`, error);
-      toast.error(`Failed to update password ${error}`);
+      console.error('Error updating password:', error);
+      toast.error('Failed to update password');
     } finally {
       setLoading(false);
     }

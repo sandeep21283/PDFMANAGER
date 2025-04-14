@@ -10,15 +10,19 @@ export interface PDF {
   share_token: string;
 }
 
+export interface UserProfile {
+  name?: string | null;
+}
+
 export interface Comment {
   id: string;
   pdf_id: string;
-  user_id: string;
   content: string;
   created_at: string;
-  updated_at: string;
+  user_id?: string | null;
+  user?: UserProfile | null; // The optional user field
 }
-
 export interface UploadedFile {
   path: string;
 }
+

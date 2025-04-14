@@ -5,11 +5,36 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { PDF, Comment } from '../lib/types';
 
-// Set up PDF.js worker (adjust version as needed)
+// Set up PDF.js worker using the current version.
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
+/**
+ * Helper function to fetch user profiles from your public "profiles" table.
+ * This function returns an object mapping user IDs to their profile data (here, just the name).
+ */
+const fetchUsersByIds = async (
+  userIds: string[]
+): Promise<Record<string, { name: string }>> => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds);
+    if (error) throw error;
+    const mapping: Record<string, { name: string }> = {};
+    data.forEach((profile) => {
+      mapping[profile.id] = { name: profile.name || 'Guest' };
+    });
+    return mapping;
+  } catch (error) {
+    console.error('Error fetching profiles:', error);
+    return {};
+  }
+};
+
 export default function SharedPDF() {
-  const { id: shareToken } = useParams(); // "id" is our share token from the URL
+  // The URL parameter "id" represents the share token stored in the pdfs table.
+  const { id: shareToken } = useParams();
   const navigate = useNavigate();
 
   const [pdf, setPdf] = useState<PDF | null>(null);
@@ -17,17 +42,16 @@ export default function SharedPDF() {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
 
-  // Comments state
+  // Comments state – Comment type now should include an optional "user" field.
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
 
-  // Fetch the shared PDF record based on the share token
+  // Fetch the shared PDF record based on the share token.
   useEffect(() => {
     if (!shareToken) return;
 
     const fetchSharedPDF = async () => {
       try {
-        // Query the pdfs table for a record with matching share token
         const { data, error } = await supabase
           .from('pdfs')
           .select('*')
@@ -40,12 +64,11 @@ export default function SharedPDF() {
           return;
         }
 
-        // Get the public URL for the PDF file from Supabase Storage
+        // Get a public URL for the stored PDF file.
         const { data: storageData } = supabase.storage
           .from('pdfs')
           .getPublicUrl(data.file_path);
 
-        // Update state with PDF data and public file URL
         setPdf({ ...data, file_path: storageData.publicUrl });
       } catch (err) {
         console.error("Error fetching shared PDF:", err);
@@ -59,7 +82,7 @@ export default function SharedPDF() {
     fetchSharedPDF();
   }, [shareToken, navigate]);
 
-  // Load comments for the fetched PDF using its id
+  // Load comments for the PDF.
   const loadComments = async (pdfId: string) => {
     try {
       const { data, error } = await supabase
@@ -68,30 +91,60 @@ export default function SharedPDF() {
         .eq('pdf_id', pdfId)
         .order('created_at', { ascending: true });
       if (error) throw error;
-      setComments(data || []);
+      if (!data) {
+        setComments([]);
+        return;
+      }
+
+      // Extract unique, non-null user_ids from comments.
+      const userIds = Array.from(
+        new Set(data.map((c: Comment) => c.user_id).filter(Boolean))
+      ) as string[];
+
+      let userMapping: Record<string, { name: string }> = {};
+      if (userIds.length > 0) {
+        userMapping = await fetchUsersByIds(userIds);
+      }
+
+      // Merge the fetched profile data into each comment.
+      const mergedComments = data.map((comment: Comment) => ({
+        ...comment,
+        user:
+          comment.user_id && userMapping[comment.user_id]
+            ? userMapping[comment.user_id]
+            : null,
+      }));
+      setComments(mergedComments);
     } catch (err) {
       console.error("Error loading comments:", err);
       toast.error("Failed to load comments.");
     }
   };
 
-  // Once the PDF is available, load its comments
+  // Load comments once the PDF is loaded.
   useEffect(() => {
     if (pdf && pdf.id) {
       loadComments(pdf.id);
     }
   }, [pdf]);
 
-  // Handler to add a comment. We assume non-authenticated users post as Guest.
+  // Handler to add a comment.
+  // If an authenticated session exists, store its user id; otherwise, store null.
   const addComment = async () => {
     if (!pdf || !pdf.id || !newComment.trim()) return;
     try {
+      // Check for an authenticated user.
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      let userId: string | null = null;
+      if (!authError && authData.user) {
+        userId = authData.user.id;
+      }
       const { error } = await supabase
         .from('comments')
         .insert({
           pdf_id: pdf.id,
           content: newComment.trim(),
-          author: null, // or store a default value like "Guest" when user info is not available
+          user_id: userId, // Will be either a valid ID or null for guest comments
         });
       if (error) throw error;
       setNewComment('');
@@ -130,11 +183,11 @@ export default function SharedPDF() {
             </h1>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
-                Page {pageNumber} {numPages ? `of ${numPages}` : null}
+                Page {pageNumber} {numPages ? `of ${numPages}` : ''}
               </span>
               <div className="flex space-x-2">
                 <button
-                  onClick={() => setPageNumber(prev => Math.max(prev - 1, 1))}
+                  onClick={() => setPageNumber((prev) => Math.max(prev - 1, 1))}
                   disabled={pageNumber <= 1}
                   className="px-2 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
                 >
@@ -142,7 +195,9 @@ export default function SharedPDF() {
                 </button>
                 <button
                   onClick={() =>
-                    setPageNumber(prev => numPages ? Math.min(prev + 1, numPages) : prev)
+                    setPageNumber((prev) =>
+                      numPages ? Math.min(prev + 1, numPages) : prev
+                    )
                   }
                   disabled={numPages !== null ? pageNumber >= numPages : false}
                   className="px-2 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
@@ -184,9 +239,8 @@ export default function SharedPDF() {
           ) : (
             comments.map((comment) => (
               <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
-                {/* If comment.author exists, show it; otherwise, show "Guest" */}
                 <p className="text-sm font-bold text-gray-900">
-                  {comment.author ? comment.author : "Guest"}
+                  {comment.user && comment.user.name ? comment.user.name : "Guest"}
                 </p>
                 <p className="text-sm text-gray-900">{comment.content}</p>
                 <p className="text-xs text-gray-500 mt-1">

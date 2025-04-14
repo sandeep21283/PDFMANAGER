@@ -18,8 +18,7 @@ function App() {
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            {/* Optionally, you might include /update-password here if you want it to be part of the auth flow */}
-            <Route path="/update-password" element={<UpdatePassword />} />
+          
           </Route>
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Dashboard />} />

@@ -88,20 +88,31 @@ export default function PDFView() {
       toast.error('Failed to load comments');
     }
   };
-
+  // Get the current authenticated user
+  
   const addComment = async () => {
-    if (!newComment.trim()) return;
 
+
+
+    if (!newComment.trim()) return;
+    const { data: authData, error: userError } = await supabase.auth.getUser();
+    if (userError || !authData.user) {
+            throw new Error('User not authenticated');
+          }
+    const userId = authData.user.id;
     try {
       const { error } = await supabase
         .from('comments')
         .insert({
           pdf_id: id,
           content: newComment.trim(),
+          user_id:userId
         });
 
       if (error) throw error;
       setNewComment('');
+      loadComments()
+
     } catch (error) {
       console.error('Error adding comment:', error);
       toast.error('Failed to add comment');

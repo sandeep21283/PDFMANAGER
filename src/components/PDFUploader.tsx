@@ -48,7 +48,9 @@ export default function PDFUploader({ onUploadComplete }: PDFUploaderProps) {
         throw new Error('User not authenticated');
       }
       const userId = authData.user.id;
-
+      const bucketUrl = "https://mshzrnauafqpdarzefkc.supabase.co/storage/v1/object/public/pdfs";
+      const publicURL = `${bucketUrl}/${data.path.startsWith('/') ? data.path.slice(1) : data.path}`;
+      
       // Insert the record in the database with the PDF metadata including user_id
       const { error: dbError, data: pdf } = await supabase
         .from('pdfs')
@@ -58,6 +60,7 @@ export default function PDFUploader({ onUploadComplete }: PDFUploaderProps) {
             file_path: data.path,
             user_id: userId,          // Set the current user's ID
             shared_link_id: null,     // Initialize as null
+            shared_link:publicURL
           },
         ])
         .select()

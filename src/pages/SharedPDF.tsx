@@ -5,41 +5,47 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { PDF, Comment } from '../lib/types';
 
-// Set up PDF.js worker
+// Set up PDF.js worker (adjust version as needed)
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 export default function SharedPDF() {
-  const { id: shareToken } = useParams(); // This id is our share token
+  const { id: shareToken } = useParams(); // "id" is our share token from the URL
   const navigate = useNavigate();
-  
+
   const [pdf, setPdf] = useState<PDF | null>(null);
   const [loading, setLoading] = useState(true);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
-  
+
   // Comments state
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
 
-  // Load PDF record based on share token
+  // Fetch the shared PDF record based on the share token
   useEffect(() => {
     if (!shareToken) return;
+
     const fetchSharedPDF = async () => {
       try {
+        // Query the pdfs table for a record with matching share token
         const { data, error } = await supabase
           .from('pdfs')
           .select('*')
           .eq('share_token', shareToken)
           .single();
+
         if (error || !data) {
           toast.error("Shared PDF not found.");
           navigate('/');
           return;
         }
-        // Get the public URL from Supabase storage
+
+        // Get the public URL for the PDF file from Supabase Storage
         const { data: storageData } = supabase.storage
           .from('pdfs')
           .getPublicUrl(data.file_path);
+
+        // Update state with PDF data and public file URL
         setPdf({ ...data, file_path: storageData.publicUrl });
       } catch (err) {
         console.error("Error fetching shared PDF:", err);
@@ -53,7 +59,7 @@ export default function SharedPDF() {
     fetchSharedPDF();
   }, [shareToken, navigate]);
 
-  // Function to load comments for this PDF
+  // Load comments for the fetched PDF using its id
   const loadComments = async (pdfId: string) => {
     try {
       const { data, error } = await supabase
@@ -69,28 +75,27 @@ export default function SharedPDF() {
     }
   };
 
-  // When the PDF is loaded, fetch its comments
+  // Once the PDF is available, load its comments
   useEffect(() => {
     if (pdf && pdf.id) {
       loadComments(pdf.id);
     }
   }, [pdf]);
 
-  // Handler to add a comment (guest user, no authentication required)
+  // Handler to add a comment. We assume non-authenticated users post as Guest.
   const addComment = async () => {
-    if (!newComment.trim() || !pdf || !pdf.id) return;
+    if (!pdf || !pdf.id || !newComment.trim()) return;
     try {
       const { error } = await supabase
         .from('comments')
         .insert({
           pdf_id: pdf.id,
           content: newComment.trim(),
-          user_id: null // null indicates a guest comment
+          author: null, // or store a default value like "Guest" when user info is not available
         });
       if (error) throw error;
       setNewComment('');
-      // Reload comments after insertion
-      loadComments(pdf.id);
+      await loadComments(pdf.id);
       toast.success("Comment added!");
     } catch (err) {
       console.error("Error adding comment:", err);
@@ -115,84 +120,99 @@ export default function SharedPDF() {
   }
 
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">Shared PDF: {pdf.name}</h1>
-      <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg">
-        <div className="sticky top-0 z-10 bg-white border-b p-4 flex items-center justify-between">
-          <span className="text-sm text-gray-600">
-            Page {pageNumber} {numPages ? `of ${numPages}` : ''}
-          </span>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setPageNumber(prev => Math.max(prev - 1, 1))}
-              disabled={pageNumber <= 1}
-              className="px-2 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
-            >
-              Prev
-            </button>
-            <button
-              onClick={() => setPageNumber(prev => Math.min(prev + 1, numPages || prev))}
-              disabled={numPages !== null ? pageNumber >= numPages : false}
-              className="px-2 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-        <div className="flex justify-center p-4">
-          <Document
-            file={pdf.file_path}
-            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-            loading={
-              <div className="animate-pulse">
-                <div className="h-[842px] w-[595px] bg-gray-200 rounded" />
+    <div className="flex h-[calc(100vh-4rem)]">
+      {/* Left Column: PDF Viewer */}
+      <div className="flex-1 overflow-auto bg-gray-100 p-4">
+        <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg">
+          <div className="sticky top-0 z-10 bg-white border-b p-4 flex items-center justify-between">
+            <h1 className="text-xl font-semibold text-gray-900 truncate">
+              {pdf.name}
+            </h1>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">
+                Page {pageNumber} {numPages ? `of ${numPages}` : null}
+              </span>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setPageNumber(prev => Math.max(prev - 1, 1))}
+                  disabled={pageNumber <= 1}
+                  className="px-2 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={() =>
+                    setPageNumber(prev => numPages ? Math.min(prev + 1, numPages) : prev)
+                  }
+                  disabled={numPages !== null ? pageNumber >= numPages : false}
+                  className="px-2 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
+                >
+                  Next
+                </button>
               </div>
-            }
-          >
-            <Page
-              pageNumber={pageNumber}
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-              className="shadow-lg"
-            />
-          </Document>
+            </div>
+          </div>
+          <div className="flex justify-center p-4">
+            <Document
+              file={pdf.file_path}
+              onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+              loading={
+                <div className="animate-pulse">
+                  <div className="h-[842px] w-[595px] bg-gray-200 rounded" />
+                </div>
+              }
+            >
+              <Page
+                pageNumber={pageNumber}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+                className="shadow-lg"
+              />
+            </Document>
+          </div>
         </div>
       </div>
 
-      {/* Comments Section */}
-      <div className="max-w-4xl mx-auto bg-white shadow rounded-lg p-6 mt-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Comments</h2>
-        {comments.length === 0 ? (
-          <p className="text-gray-500">No comments yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {comments.map(comment => (
-              <div key={comment.id} className="p-4 bg-gray-50 rounded">
-                <p className="text-gray-900 text-sm">{comment.content}</p>
-                <p className="text-gray-500 text-xs">
+      {/* Right Column: Comments */}
+      <div className="w-96 border-l bg-white flex flex-col">
+        <div className="p-4 border-b">
+          <h2 className="text-lg font-semibold text-gray-900">Comments</h2>
+        </div>
+        <div className="flex-1 overflow-auto p-4 space-y-4">
+          {comments.length === 0 ? (
+            <p className="text-gray-500">No comments yet.</p>
+          ) : (
+            comments.map((comment) => (
+              <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                {/* If comment.author exists, show it; otherwise, show "Guest" */}
+                <p className="text-sm font-bold text-gray-900">
+                  {comment.author ? comment.author : "Guest"}
+                </p>
+                <p className="text-sm text-gray-900">{comment.content}</p>
+                <p className="text-xs text-gray-500 mt-1">
                   {new Date(comment.created_at).toLocaleString()}
                 </p>
               </div>
-            ))}
+            ))
+          )}
+        </div>
+        <div className="p-4 border-t">
+          <div className="flex flex-col space-y-2">
+            <textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="min-h-[50px] rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              rows={3}
+            />
+            <button
+              onClick={addComment}
+              disabled={!newComment.trim()}
+              className="mt-2 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            >
+              Post Comment
+            </button>
           </div>
-        )}
-
-        {/* Add Comment Form */}
-        <div className="mt-4">
-          <textarea
-            value={newComment}
-            onChange={e => setNewComment(e.target.value)}
-            placeholder="Add a comment..."
-            className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            rows={3}
-          />
-          <button
-            onClick={addComment}
-            disabled={!newComment.trim()}
-            className="mt-2 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-          >
-            Post Comment
-          </button>
         </div>
       </div>
     </div>

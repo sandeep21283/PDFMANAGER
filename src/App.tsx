@@ -18,14 +18,14 @@ function App() {
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-          
+            <Route path="/update-password" element={<UpdatePassword />} />
           </Route>
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Dashboard />} />
             
             <Route path="/pdf/:id" element={<PDFView />} />
           </Route>
-          <Route path="/update-password" element={<UpdatePassword />} />
+          
           <Route path="/shared/:id" element={<SharedPDF />} />
         </Routes>
       </Router>

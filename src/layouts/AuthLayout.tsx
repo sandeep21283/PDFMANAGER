@@ -7,7 +7,7 @@ export default function AuthLayout() {
   const { user } = useAuth();
   const location = useLocation();
 
-  if (user) {
+  if (user && location.pathname !== '/update-password') {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 

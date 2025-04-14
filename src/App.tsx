@@ -25,10 +25,11 @@ function App() {
             
             <Route path="/pdf/:id" element={<PDFView />} />
           </Route>
-          <Route path="/update-password" element={<UpdatePassword />} />
+          
           <Route path="/shared/:id" element={<SharedPDF />} />
         </Routes>
       </Router>
+      <Route path="/update-password" element={<UpdatePassword />} />
       <Toaster position="top-center" />
     </>
   );

@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Navigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 
 export default function UpdatePassword() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -13,23 +12,24 @@ export default function UpdatePassword() {
   const [isRecovery, setIsRecovery] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (location.hash) {
-      // Remove '#' and parse params from the hash
-      const hashParams = new URLSearchParams(location.hash.slice(1));
-      const type = hashParams.get('type'); // expect type to be "recovery"
+    const hash = window.location.hash;
+    if (hash) {
+      const hashParams = new URLSearchParams(hash.slice(1));
+      const type = hashParams.get('type');
       setIsRecovery(type === 'recovery');
     } else {
-      // If there's no hash, set as not recovery (or you can choose to wait)
       setIsRecovery(false);
     }
-  }, [location.hash]);
+  }, []);
 
-  // While we haven't determined the recovery status
   if (isRecovery === null) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <p>Loading...</p>
+      </div>
+    );
   }
-
-  // If it's not a recovery token, redirect to home
+  
   if (!isRecovery) {
     return <Navigate to="/" replace />;
   }
@@ -37,17 +37,17 @@ export default function UpdatePassword() {
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match');
+      toast.error("Passwords don't match");
       return;
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       toast.success('Password updated successfully!');
-      // Optionally, sign the user out if needed
+      
+      // Remove the reset flag once the password has been updated.
+      localStorage.removeItem("passwordResetInProgress");
       navigate('/');
     } catch (error) {
       console.error('Error updating password:', error);

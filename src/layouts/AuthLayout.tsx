@@ -7,12 +7,13 @@ export default function AuthLayout() {
   const { user } = useAuth();
   const location = useLocation();
 
-  if (user && location.pathname !== '/update-password') {
-    
-    
+  const resetInProgress = localStorage.getItem("passwordResetInProgress") === "true";
+
+  // If a user is authenticated and we’re NOT in a reset flow, redirect away from login/register.
+  // Otherwise, if a reset is in progress, let the update-password page show.
+  if (user && !resetInProgress && location.pathname !== '/update-password') {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">

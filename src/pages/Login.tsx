@@ -34,13 +34,14 @@ export default function Login() {
   const handlePasswordReset = async () => {
     try {
       setResetting(true);
-      // This call sends a password reset email to the user.
-      // Replace the redirectTo URL with where you'll handle the password reset.
+      // Set a flag to note that a password reset is in progress
+      localStorage.setItem("passwordResetInProgress", "true");
+  
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/update-password`,
       });
       if (error) throw error;
-
+      
       toast.success('Password reset email sent! Check your inbox.');
     } catch (error) {
       console.error('Password reset error:', error);

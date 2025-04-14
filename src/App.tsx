@@ -22,9 +22,10 @@ function App() {
           </Route>
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/update-password" element={<UpdatePassword />} />
+            
             <Route path="/pdf/:id" element={<PDFView />} />
           </Route>
+          <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="/shared/:id" element={<SharedPDF />} />
         </Routes>
       </Router>

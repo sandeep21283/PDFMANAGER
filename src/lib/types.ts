@@ -6,6 +6,8 @@ export interface PDF {
   created_at: string;
   updated_at: string;
   shared_link_id: string;
+  shared_link: string;
+  share_token: string;
 }
 
 export interface Comment {

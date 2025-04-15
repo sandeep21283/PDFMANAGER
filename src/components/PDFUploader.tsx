@@ -15,16 +15,16 @@ export default function PDFUploader({ onUploadComplete }: PDFUploaderProps) {
     try {
       setUploading(true);
 
-      // Ensure the file is a PDF
+      // Ensure the file is a PDF by checking the file's MIME type.
       if (!file.type.includes('pdf')) {
         throw new Error('Please upload a PDF file');
       }
 
-      // Create a unique filename to prevent collisions
+      // Create a unique filename to prevent collisions.
       const timestamp = new Date().getTime();
       const filename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
-      // Upload the file to the Supabase storage bucket named "pdfs"
+      // Upload the file to the Supabase storage bucket "pdfs".
       const { error: uploadError, data } = await supabase.storage
         .from('pdfs')
         .upload(filename, file, {
@@ -42,25 +42,29 @@ export default function PDFUploader({ onUploadComplete }: PDFUploaderProps) {
         throw new Error('No file path returned from storage');
       }
 
-      // Get the current authenticated user
+      // Get the current authenticated user.
       const { data: authData, error: userError } = await supabase.auth.getUser();
       if (userError || !authData.user) {
         throw new Error('User not authenticated');
       }
       const userId = authData.user.id;
+
+      // Construct the public URL for the PDF.
       const bucketUrl = "https://mshzrnauafqpdarzefkc.supabase.co/storage/v1/object/public/pdfs";
       const publicURL = `${bucketUrl}/${data.path.startsWith('/') ? data.path.slice(1) : data.path}`;
-      
-      // Insert the record in the database with the PDF metadata including user_id
+
+      // Insert a new record in the 'pdfs' table with PDF metadata.
+      // We store the original file name, the file path (as returned by storage),
+      // the user_id, and also create a share link (which here is the public URL).
       const { error: dbError, data: pdf } = await supabase
         .from('pdfs')
         .insert([
           {
             name: file.name,
             file_path: data.path,
-            user_id: userId,          // Set the current user's ID
-            shared_link_id: null,     // Initialize as null
-            shared_link:publicURL
+            user_id: userId,
+            shared_link_id: null,  // Initialize as null, if needed
+            shared_link: publicURL,
           },
         ])
         .select()
@@ -68,8 +72,7 @@ export default function PDFUploader({ onUploadComplete }: PDFUploaderProps) {
 
       if (dbError) {
         console.error('Database insert error:', dbError);
-        // Optionally remove the file from storage to avoid orphaned files if insert fails
-        // await supabase.storage.from('pdfs').remove([data.path]);
+        // Optionally remove the file from storage to avoid orphaned files if insert fails.
         throw new Error('Failed to create database record');
       }
 
@@ -77,6 +80,7 @@ export default function PDFUploader({ onUploadComplete }: PDFUploaderProps) {
         throw new Error('No PDF data returned from database');
       }
 
+      // Call the parent callback with the uploaded PDF record.
       onUploadComplete(pdf);
       toast.success('PDF uploaded successfully!');
     } catch (error) {

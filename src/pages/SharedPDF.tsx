@@ -63,13 +63,14 @@ export default function SharedPDF() {
           navigate('/');
           return;
         }
+        const { data: storageData } = await  supabase.storage
+                .from('pdfs')
+                .createSignedUrl(data.file_path,60);
 
-        // Get a public URL for the stored PDF file.
-        const { data: storageData } = supabase.storage
-          .from('pdfs')
-          .getPublicUrl(data.file_path);
 
-        setPdf({ ...data, file_path: storageData.publicUrl });
+      
+
+        setPdf({ ...data, file_path:storageData?.signedUrl  });
       } catch (err) {
         console.error("Error fetching shared PDF:", err);
         toast.error("An error occurred while fetching the shared PDF.");
@@ -174,9 +175,10 @@ export default function SharedPDF() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
-      <h1>Shared Pdf Platform</h1>
+    
       {/* Left Column: PDF Viewer */}
       <div className="flex-1 overflow-auto bg-gray-100 p-4">
+      <h1>Shared Pdf Platform</h1>
         <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg">
           <div className="sticky top-0 z-10 bg-white border-b p-4 flex items-center justify-between">
             <h1 className="text-xl font-semibold text-gray-900 truncate">

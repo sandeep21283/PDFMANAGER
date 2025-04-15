@@ -5,17 +5,60 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import PDFUploader from '../components/PDFUploader';
 import type { PDF } from '../lib/types';
+import emailjs from 'emailjs-com';
+
 // (Optionally, if using UUID generation for tokens)
 import { v4 as uuidv4 } from 'uuid';
 
 // Example stub for email sending
 // You will replace this with your actual email sending implementation (e.g., via a serverless function or email service)
-async function sendInviteEmail({ to, shareUrl, pdfName }: { to: string; shareUrl: string; pdfName: string; }) {
-  // For demo purposes, we just log the email payload
-  console.log('Sending invite email to:', to, 'with link:', shareUrl, 'for PDF:', pdfName);
-  // Here you would typically make a POST request to your email service endpoint.
-  // Return an object with an "error" property if something goes wrong.
-  return { error: null };
+async function sendInviteEmail({
+  frome,
+  displayname,
+  to,
+  shareUrl,
+  pdfName,
+}: {
+  frome:string,
+  displayname:string,
+  to: string;
+  shareUrl: string;
+  pdfName: string;
+}): Promise<{ error: any }> {
+  try {
+    // Template parameters to be injected in your EmailJS template.
+    // Note: "from_email" is not passed here; the sender email is controlled
+    // by your EmailJS service configuration.
+ 
+    
+    const templateParams = {
+      from_email:frome,
+      from_displayname:displayname,
+      to_email: to,
+      pdf_name: pdfName,
+      share_url: shareUrl,
+    };
+
+    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+    const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+
+
+    
+    const result = await emailjs.send(
+      serviceId,     
+      templateId,   
+      templateParams,
+      publicKey     
+    );
+ 
+    
+    return { error: null };
+  } catch (error) {
+   
+    return { error };
+  }
 }
 
 export default function Dashboard() {
@@ -34,6 +77,8 @@ export default function Dashboard() {
       if (userError || !authData.user) {
         throw new Error('User not authenticated');
       }
+      
+      
       const userId = authData.user.id;
 
       const { data, error } = await supabase
@@ -125,9 +170,16 @@ export default function Dashboard() {
 
       // Build the share URL
       const shareUrl = `${window.location.origin}/shared/${shareToken}`;
-
+      const { data: authData, error: userError } = await supabase.auth.getUser();
+      if (userError || !authData.user) {
+        throw new Error('User not authenticated');
+      }
+      const displayname = authData.user.user_metadata.display_name;
+      const fromemail = authData.user.user_metadata.email;
       // Send email invite via your email service
       const { error: emailError } = await sendInviteEmail({
+        frome:fromemail,
+        displayname:displayname,
         to: email,
         shareUrl,
         pdfName: pdf.name,

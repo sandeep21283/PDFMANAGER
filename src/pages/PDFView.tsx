@@ -90,12 +90,15 @@ export default function PDFView() {
         return;
       }
 
-      // Get the public URL for the stored PDF file.
-      const { data: storageData } = supabase.storage
+      // Get the private URL for the stored PDF file.
+      const { data: storageData } = await  supabase.storage
         .from('pdfs')
-        .getPublicUrl(pdfData.file_path);
+        .createSignedUrl(pdfData.file_path,60);
 
-      setPdf({ ...pdfData, file_path: storageData.publicUrl });
+     
+      
+      
+      setPdf({ ...pdfData, file_path: storageData?.signedUrl  });
     } catch (error) {
       console.error('Error loading PDF:', error);
       toast.error('Failed to load PDF');

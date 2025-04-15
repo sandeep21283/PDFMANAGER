@@ -5,6 +5,10 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { PDF, Comment } from '../lib/types';
 
+// Import ReactQuill for rich-text editing
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+
 // Set up PDF.js worker using the current version.
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
@@ -44,6 +48,7 @@ export default function SharedPDF() {
 
   // Comments state – Comment type now should include an optional "user" field.
   const [comments, setComments] = useState<Comment[]>([]);
+  // newComment now will hold the rich-text (HTML) output from ReactQuill.
   const [newComment, setNewComment] = useState('');
 
   // Fetch the shared PDF record based on the share token.
@@ -63,14 +68,11 @@ export default function SharedPDF() {
           navigate('/');
           return;
         }
-        const { data: storageData } = await  supabase.storage
-                .from('pdfs')
-                .createSignedUrl(data.file_path,60);
+        const { data: storageData } = await supabase.storage
+          .from('pdfs')
+          .createSignedUrl(data.file_path, 60);
 
-
-      
-
-        setPdf({ ...data, file_path:storageData?.signedUrl  });
+        setPdf({ ...data, file_path: storageData?.signedUrl });
       } catch (err) {
         console.error("Error fetching shared PDF:", err);
         toast.error("An error occurred while fetching the shared PDF.");
@@ -144,6 +146,7 @@ export default function SharedPDF() {
         .from('comments')
         .insert({
           pdf_id: pdf.id,
+          // Save the HTML output from ReactQuill.
           content: newComment.trim(),
           user_id: userId, // Will be either a valid ID or null for guest comments
         });
@@ -175,10 +178,9 @@ export default function SharedPDF() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
-    
       {/* Left Column: PDF Viewer */}
       <div className="flex-1 overflow-auto bg-gray-100 p-4">
-      <h1>Shared Pdf Platform</h1>
+        <h1>Shared Pdf Platform</h1>
         <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg">
           <div className="sticky top-0 z-10 bg-white border-b p-4 flex items-center justify-between">
             <h1 className="text-xl font-semibold text-gray-900 truncate">
@@ -245,7 +247,11 @@ export default function SharedPDF() {
                 <p className="text-sm font-bold text-gray-900">
                   {comment.user && comment.user.name ? comment.user.name : "Guest"}
                 </p>
-                <p className="text-sm text-gray-900">{comment.content}</p>
+                {/* Render comment content as HTML */}
+                <div
+                  className="comment-content"
+                  dangerouslySetInnerHTML={{ __html: comment.content }}
+                />
                 <p className="text-xs text-gray-500 mt-1">
                   {new Date(comment.created_at).toLocaleString()}
                 </p>
@@ -255,12 +261,20 @@ export default function SharedPDF() {
         </div>
         <div className="p-4 border-t">
           <div className="flex flex-col space-y-2">
-            <textarea
+            {/* Replace the plain textarea with ReactQuill for rich-text editing */}
+            <ReactQuill
               value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
+              onChange={setNewComment}
               placeholder="Add a comment..."
-              className="min-h-[50px] rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              rows={3}
+              modules={{
+                toolbar: [
+                  ['bold', 'italic'],      // Bold, Italic buttons
+                  [{ list: 'bullet' }],     // Bullet list button
+                  ['clean'],               // Remove formatting
+                ],
+              }}
+              formats={['bold', 'italic', 'list', 'bullet']}
+              className="rounded-md"
             />
             <button
               onClick={addComment}

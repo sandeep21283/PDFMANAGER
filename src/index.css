@@ -1,3 +1,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* e.g., in your global CSS, or a relevant .css file */
+.ql-editor ul {
+    list-style-type: disc !important;
+    margin-left: 1.5rem; /* or whatever spacing you like */
+  }
+  .ql-editor li {
+    margin-bottom: 0.25rem;
+  }
+  .ql-editor ul {
+    list-style-type: disc !important;
+    margin-left: 1.5rem;
+  }/* Only target the rendered comment content */
+.comment-content ul {
+    list-style-type: disc !important;
+    margin-left: 1.5rem !important;
+    padding-left: 1.5rem !important;
+  }
+  
+  .comment-content li {
+    margin-bottom: 0.25rem !important;
+  }

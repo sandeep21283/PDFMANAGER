@@ -82,7 +82,22 @@ export default function Dashboard() {
 
   // Existing copy share link function
   const copyShareLink = async (pdf: PDF) => {
-    const shareUrl = `${window.location.origin}/shared/${pdf.shared_link}`;
+    // Ensure share token exists - if none exists, generate one and update the PDF record.
+    let shareToken = pdf.share_token; // using 'shared_link' field from your PDF
+    if (!shareToken) {
+      shareToken = uuidv4();
+      const { error: updateError } = await supabase
+        .from('pdfs')
+        .update({ share_token: shareToken })
+        .eq('id', pdf.id);
+      if (updateError) {
+        throw new Error('Failed to update PDF with share link');
+      }
+    }
+
+    
+      // Build the share URL
+    const shareUrl = `${window.location.origin}/shared/${shareToken}`;
     await navigator.clipboard.writeText(shareUrl);
     toast.success('Share link copied to clipboard!');
   };
@@ -91,6 +106,7 @@ export default function Dashboard() {
   const handleEmailShare = async (pdf: PDF) => {
     try {
       // Prompt for invitee's email address (you might replace this with a proper modal or form)
+
       const email = prompt("Enter the invitee's email address:");
       if (!email) return;
 

@@ -32,7 +32,16 @@ export default function Register() {
       navigate('/login');
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error('Failed to register. Please try again.');
+      let errorMessage = 'An unknown error occurred';
+          if (error instanceof Error) {
+            errorMessage = error.message;
+          }
+
+       
+          const extractedMessage =
+            errorMessage.split(':')[1]?.trim() || errorMessage;
+
+      toast.error(`Failed to register. ${extractedMessage}`);
     } finally {
       setLoading(false);
     }

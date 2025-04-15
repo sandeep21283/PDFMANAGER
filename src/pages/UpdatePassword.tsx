@@ -51,7 +51,15 @@ export default function UpdatePassword() {
       navigate('/');
     } catch (error) {
       console.error('Error updating password:', error);
-      toast.error('Failed to update password');
+      let errorMessage = 'An unknown error occurred';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+   
+      const extractedMessage =
+        errorMessage.split(':')[1]?.trim() || errorMessage;
+      toast.error(`Failed to update password ${extractedMessage}.`);
     } finally {
       setLoading(false);
     }

@@ -25,7 +25,17 @@ export default function Login() {
       navigate('/');
     } catch (error) {
       console.error('Sign-in error:', error);
-      toast.error('Failed to sign in. Please check your credentials.');
+      let errorMessage = 'An unknown error occurred';
+                if (error instanceof Error) {
+                  errorMessage = error.message;
+                }
+      
+             
+                const extractedMessage =
+                  errorMessage.split(':')[1]?.trim() || errorMessage;
+      
+            toast.error(`Failed to  sign in. ${extractedMessage}`);
+      
     } finally {
       setLoading(false);
     }
@@ -45,7 +55,16 @@ export default function Login() {
       toast.success('Password reset email sent! Check your inbox.');
     } catch (error) {
       console.error('Password reset error:', error);
-      toast.error('Failed to send password reset email. Make sure the email is correct.');
+      let errorMessage = 'An unknown error occurred';
+                if (error instanceof Error) {
+                  errorMessage = error.message;
+                }
+      
+             
+    const extractedMessage =
+                  errorMessage.split(':')[1]?.trim() || errorMessage;
+      
+      toast.error(`Failed to send password reset email. ${extractedMessage}.`);
     } finally {
       setResetting(false);
     }

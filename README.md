@@ -86,24 +86,24 @@ points) for comments.
   EmailJs to send email notifications.
 
 
-## 6. Usage
+## 5. Usage
 
-### 6.1 Registration & Authentication
+### 5.1 Registration & Authentication
 
 - **Registration:** Users register with their display name, email, and password. The display name is stored in the public profiles table via triggers on auth.users.
 - **Login:** Standard login is implemented using Supabase Auth.
 
 
-### 6.2 PDF Upload and Viewing
+### 5.2 PDF Upload and Viewing
 - **Upload:** Users upload PDFs through the PDFUploader component. Only files with PDF MIME type are allowed. Each file is stored in a Supabase Storage bucket, and its metadata is saved in the pdfs table.
 - **Dashboard:** The dashboard provides a list of the user’s PDFs with search capability. Clicking a PDF opens the PDFView page, which includes a PDF viewer (using react-pdf) and a comments sidebar.
 
-### 6.3 Sharing and Public Access
+### 5.3 Sharing and Public Access
 - **Share Link:** A unique share link is generated for each uploaded PDF. This link allows public (unauthenticated) and authenticated users to access the PDF via the SharedPDF page.
-- **SharedPDF Page:**The public page allows external users to view the PDF and post comments. Comments are displayed along with the user’s display name from the profiles table (or “Guest” if the user isn’t authenticated).
+- **SharedPDF Page:** The public page allows external users to view the PDF and post comments. Comments are displayed along with the user’s display name from the profiles table (or “Guest” if the user isn’t authenticated).
 
 
-### 6.4 Commenting & Real-Time Collaboration
+### 5.4 Commenting & Real-Time Collaboration
 
 - **Commenting:**  
   While viewing a PDF, users (or guests) can add comments via a sidebar.  
@@ -113,12 +113,12 @@ points) for comments.
 - **Real-Time Updates:**  
   The system uses Supabase’s real-time features to subscribe to new comment events and update the UI dynamically.
 
-### 6.5 Email Notifications
+### 5.5 Email Notifications
 
 - **Email Invitations:**  
   If enabled, when a user shares a PDF, the system can send email invitations using Emailjs.
 
-## 7. Future Enhancements
+## 6. Future Enhancements
 
 ### Future Enhancements
 

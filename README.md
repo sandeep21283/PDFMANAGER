@@ -51,7 +51,7 @@ points) for comments.
 ### 3.4 Comments & Real-Time Collaboration
 
 - **Commenting:**  
-  Users and guests can add comments in a sidebar. Authenticated comments store the user’s ID and display the user’s display name from the profiles table; anonymous comments display “Guest” and there are basic text formatting options (bold, italic, bullet
+  Users and guests can add comments in a sidebar. Authenticated comments store the user’s ID and display the user’s display name from the profiles table; anonymous comments display “Guest”, and there are basic text formatting options (bold, italic, bullet
 points) for comments. 
   
 - **Real-Time Updates:**  
@@ -109,6 +109,8 @@ points) for comments.
   While viewing a PDF, users (or guests) can add comments via a sidebar.  
   - Their user ID is saved if an authenticated user posts a comment.  
   - When loading comments, the system fetches the corresponding display name from the public `profiles` table; otherwise, comments display “Guest.”
+  - There are basic text formatting options (bold, italic, bullet
+points) for comments. 
 
 - **Real-Time Updates:**  
   The system uses Supabase’s real-time features to subscribe to new comment events and update the UI dynamically.

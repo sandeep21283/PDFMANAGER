@@ -50,7 +50,46 @@ export default function SharedPDF() {
   const [comments, setComments] = useState<Comment[]>([]);
   // newComment now will hold the rich-text (HTML) output from ReactQuill.
   const [newComment, setNewComment] = useState('');
-
+  useEffect(() => {
+    if (!pdf || !pdf.id) return;
+  
+    const channel = supabase
+      .channel('realtime-comments')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'comments',
+          filter: `pdf_id=eq.${pdf.id}`,
+        },
+        async (payload) => {
+          const newComment = payload.new as Comment;
+  
+          let userName = 'Guest';
+          if (newComment.user_id) {
+            const { data: userProfile } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', newComment.user_id)
+              .single();
+            userName = userProfile?.name || 'Guest';
+          }
+          setComments((prev) => [
+            { ...newComment, user: { name: userName } },
+            ...prev
+          ]);
+          toast.success(`Comment added! by ${userName}`);
+          
+        }
+      )
+      .subscribe();
+  
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [pdf]);
+  
   // Fetch the shared PDF record based on the share token.
   useEffect(() => {
     if (!shareToken) return;
@@ -92,7 +131,7 @@ export default function SharedPDF() {
         .from('comments')
         .select('*')
         .eq('pdf_id', pdfId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false  });
       if (error) throw error;
       if (!data) {
         setComments([]);
@@ -152,7 +191,7 @@ export default function SharedPDF() {
         });
       if (error) throw error;
       setNewComment('');
-      await loadComments(pdf.id);
+
       toast.success("Comment added!");
     } catch (err) {
       console.error("Error adding comment:", err);

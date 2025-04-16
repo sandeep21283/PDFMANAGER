@@ -15,6 +15,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
  * Helper function to fetch user profiles by their IDs from the public "profiles" table.
  * Returns an object mapping user IDs to an object with the user's name.
  */
+
 const fetchUsersByIds = async (
   userIds: string[]
 ): Promise<Record<string, { name: string }>> => {
@@ -51,32 +52,50 @@ export default function PDFView() {
   useEffect(() => {
     if (!id) return;
     loadPDF();
-    loadComments();
-
-    // Subscribe to new comment inserts
-    const subscription = supabase
-      .channel('comments')
+    loadComments(); // Load initial comments only once
+  
+    const channel = supabase
+      .channel('realtime:comments')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'comments',
           filter: `pdf_id=eq.${id}`,
         },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            // Merge the new comment (rich HTML content) with existing comments.
-            setComments((prev) => [...prev, payload.new as Comment]);
+        async (payload) => {
+          const comment = payload.new;
+  
+          let userName = 'Guest';
+          if (comment.user_id) {
+            const { data: userProfile } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', comment.user_id)
+              .single();
+            userName = userProfile?.name || 'Guest';
           }
+  
+          setComments((prev) => [
+            {
+              ...comment,
+              user: { name: userName },
+            } as Comment,
+            ...prev,
+          ]);
+          toast.success(`Comment added! by ${userName}`);
+          
         }
       )
       .subscribe();
-
+  
     return () => {
-      subscription.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [id]);
+  
+  
 
   const loadPDF = async () => {
     try {
@@ -114,7 +133,7 @@ export default function PDFView() {
         .from('comments')
         .select('*')
         .eq('pdf_id', id)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false  });
 
       if (error) throw error;
       if (!data) {
@@ -166,7 +185,7 @@ export default function PDFView() {
         });
       if (error) throw error;
       setNewComment('');
-      loadComments();
+       toast.success("Comment added!");
     } catch (error) {
       console.error('Error adding comment:', error);
       toast.error('Failed to add comment');
@@ -253,22 +272,24 @@ export default function PDFView() {
             <p className="text-gray-500">No comments yet.</p>
           ) : (
             comments.map((comment) => (
-              <div key={comment.id} className="bg-gray-50 rounded-lg p-4">
+              <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
                 <p className="text-sm font-bold text-gray-900">
-                  {comment.user?.name ? comment.user.name : 'Guest'}
+                  {comment.user && comment.user.name ? comment.user.name : "Guest"}
                 </p>
-                {/* Render comment content as HTML to display bullet points and formatting */}
+                {/* Render comment content as HTML */}
                 <div
-                 className="comment-content"
+                  className="comment-content"
                   dangerouslySetInnerHTML={{ __html: comment.content }}
                 />
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-gray-500 mt-1">
                   {new Date(comment.created_at).toLocaleString()}
                 </p>
               </div>
             ))
           )}
         </div>
+
+
 
         <div className="p-4 border-t">
           <div className="flex flex-col space-y-2">

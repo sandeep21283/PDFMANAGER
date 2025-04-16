@@ -14,14 +14,15 @@ export interface UserProfile {
   name?: string | null;
 }
 
-export interface Comment {
+export type Comment = {
   id: string;
   pdf_id: string;
   content: string;
+  user_id: string;
   created_at: string;
-  user_id?: string | null;
-  user?: UserProfile | null; // The optional user field
-}
+  updated_at?: string;
+  user?: { name: string } | null; // 👈 Fix is here
+};
 export interface UploadedFile {
   path: string;
 }
